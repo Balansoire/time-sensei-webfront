@@ -1,0 +1,138 @@
+<div class="min-h-screen bg-linear-to-br from-blue-50 to-blue-100 p-4">
+  <div class="max-w-2xl mx-auto">
+    <!-- En-tête -->
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-blue-600">Révision</h1>
+        <p class="text-gray-600 text-sm">
+          {{ characterType() | titlecase }} - {{ revisionMode() === 'recognition' ? 'Reconnaissance' : 'Écriture' }} - {{ difficulty() | titlecase }}
+        </p>
+      </div>
+      <button
+        (click)="logout()"
+        class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition"
+      >
+        Déconnexion
+      </button>
+    </div>
+
+    <!-- Barre de progression -->
+    <div *ngIf="!sessionComplete()" class="bg-white rounded-lg shadow p-4 mb-6">
+      <div class="flex justify-between mb-2">
+        <span class="text-sm font-medium text-gray-700">Question {{ currentIndex() + 1 }} / {{ totalQuestions() }}</span>
+        <span class="text-sm font-medium text-green-600">✓ {{ correctAnswers() }} bonnes réponses</span>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-2">
+        <div
+          class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          [style.width.%]="((currentIndex() + 1) / totalQuestions()) * 100"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Zone de révision -->
+    <div class="bg-white rounded-lg shadow-2xl p-8 min-h-96 flex flex-col justify-center items-center">
+      <div *ngIf="isLoading()" class="text-center">
+        <p class="text-gray-600">Chargement...</p>
+      </div>
+
+      <!-- Session en cours -->
+      <div *ngIf="!isLoading() && !sessionComplete()" class="w-full text-center">
+        <!-- Affichage du caractère -->
+        <div class="mb-8">
+          <p class="text-gray-600 text-sm mb-4">Identifiez ce caractère :</p>
+          <div class="bg-linear-to-br from-blue-50 to-blue-100 rounded-lg p-12 mb-6 border-2 border-blue-200">
+            <p class="text-8xl font-bold text-blue-600" *ngIf="currentCharacter()">
+              {{ currentCharacter()!.character }}
+            </p>
+          </div>
+
+          <!-- Mode Reconnaissance - Boutons de réponse -->
+          <div *ngIf="revisionMode() === 'recognition'" class="space-y-3">
+            <button
+              *ngFor="let option of answerOptions()"
+              (click)="selectAnswer(option)"
+              [disabled]="isAnswered()"
+              class="w-full py-3 px-4 rounded-lg font-bold text-white transition"
+              [ngClass]="{
+                'bg-green-600 hover:bg-green-700': isAnswered() && option === correctAnswer(),
+                'bg-red-600 hover:bg-red-700': isAnswered() && option === selectedAnswer() && !isCorrect(),
+                'bg-blue-600 hover:bg-blue-700 disabled:opacity-50': !isAnswered(),
+                'bg-gray-400 cursor-not-allowed': isAnswered() && option !== correctAnswer() && option !== selectedAnswer()
+              }"
+            >
+              {{ option }}
+            </button>
+          </div>
+
+          <!-- Mode Écriture - Champ de texte -->
+          <div *ngIf="revisionMode() === 'writing'" class="space-y-3">
+            <input
+              type="text"
+              [(ngModel)]="userInput"
+              placeholder="Écrivez la romanisation..."
+              [disabled]="isAnswered()"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+            <button
+              (click)="submitWriting()"
+              [disabled]="isAnswered() || !userInput()"
+              class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-lg transition"
+            >
+              Valider
+            </button>
+          </div>
+        </div>
+
+        <!-- Affichage de la réponse après la réponse -->
+        <div *ngIf="isAnswered()" class="space-y-4">
+          <div
+            class="p-4 rounded-lg text-white font-bold"
+            [ngClass]="isCorrect() ? 'bg-green-500' : 'bg-red-500'"
+          >
+            {{ isCorrect() ? '✓ Correct!' : '✗ Incorrect' }}
+          </div>
+
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <p class="text-sm text-gray-600 mb-2">Réponse :</p>
+            <p class="text-lg font-bold text-blue-600">{{ correctAnswer() }}</p>
+            <p *ngIf="currentCharacterSignification" class="text-sm text-gray-600 mt-2">
+              Sens: {{ currentCharacterSignification }}
+            </p>
+          </div>
+
+          <button
+            (click)="nextCharacter()"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition"
+          >
+            Caractère suivant
+          </button>
+        </div>
+      </div>
+
+      <!-- Session terminée -->
+      <div *ngIf="sessionComplete()" class="w-full text-center space-y-6">
+        <h2 class="text-3xl font-bold text-blue-600">Session terminée!</h2>
+
+        <div class="grid grid-cols-2 gap-4 my-6">
+          <div class="bg-linear-to-br from-green-50 to-green-100 p-6 rounded-lg border-2 border-green-200">
+            <p class="text-gray-600 text-sm mb-2">Bonnes réponses</p>
+            <p class="text-4xl font-bold text-green-600">{{ correctAnswers() }}/{{ totalQuestions() }}</p>
+          </div>
+
+          <div class="bg-linear-to-br from-blue-50 to-blue-100 p-6 rounded-lg border-2 border-blue-200">
+            <p class="text-gray-600 text-sm mb-2">Précision</p>
+            <p class="text-4xl font-bold text-blue-600">{{ getAccuracy() }}%</p>
+          </div>
+        </div>
+
+        <button
+          (click)="restartSession()"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition"
+        >
+          Nouvelle session
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

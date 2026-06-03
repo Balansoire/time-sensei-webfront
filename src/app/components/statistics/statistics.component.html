@@ -1,0 +1,167 @@
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+  <div class="max-w-4xl mx-auto">
+    <!-- En-tête -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-blue-600">Vos Statistiques</h1>
+        <p class="text-gray-600">Aperçu de vos progrès</p>
+      </div>
+      <div class="space-x-2">
+        <button
+          (click)="goBack()"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition"
+        >
+          Retour
+        </button>
+        <button
+          (click)="logout()"
+          class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition"
+        >
+          Déconnexion
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoading()" class="text-center py-12">
+      <p class="text-gray-600">Chargement...</p>
+    </div>
+
+    <div *ngIf="!isLoading() && statistics()" class="space-y-6">
+      <!-- Statistiques globales -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <p class="text-gray-600 text-sm mb-2">Total réponses</p>
+          <p class="text-4xl font-bold text-blue-600">{{ statistics()!.totalAnswers }}</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <p class="text-gray-600 text-sm mb-2">Réponses correctes</p>
+          <p class="text-4xl font-bold text-green-600">{{ statistics()!.correctAnswers }}</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <p class="text-gray-600 text-sm mb-2">Précision globale</p>
+          <p class="text-4xl font-bold text-purple-600">{{ statistics()!.accuracy }}%</p>
+        </div>
+      </div>
+
+      <!-- Statistiques par type de caractère -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Résultats par type de caractère</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Hiragana -->
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-bold text-blue-600 mb-2">Hiragana</h3>
+            <div class="space-y-2">
+              <p class="text-sm text-gray-600">
+                {{ statistics()!.byType.hiragana.correct }} / {{ statistics()!.byType.hiragana.total }} correct
+              </p>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-blue-600 h-2 rounded-full"
+                  [style.width.%]="(statistics()!.byType.hiragana.total > 0 ? (statistics()!.byType.hiragana.correct / statistics()!.byType.hiragana.total) * 100 : 0)"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Katakana -->
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-bold text-green-600 mb-2">Katakana</h3>
+            <div class="space-y-2">
+              <p class="text-sm text-gray-600">
+                {{ statistics()!.byType.katakana.correct }} / {{ statistics()!.byType.katakana.total }} correct
+              </p>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-green-600 h-2 rounded-full"
+                  [style.width.%]="(statistics()!.byType.katakana.total > 0 ? (statistics()!.byType.katakana.correct / statistics()!.byType.katakana.total) * 100 : 0)"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kanji -->
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-bold text-purple-600 mb-2">Kanji</h3>
+            <div class="space-y-2">
+              <p class="text-sm text-gray-600">
+                {{ statistics()!.byType.kanji.correct }} / {{ statistics()!.byType.kanji.total }} correct
+              </p>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-purple-600 h-2 rounded-full"
+                  [style.width.%]="(statistics()!.byType.kanji.total > 0 ? (statistics()!.byType.kanji.correct / statistics()!.byType.kanji.total) * 100 : 0)"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statistiques par niveau de difficulté -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Résultats par niveau de difficulté</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Débutant -->
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-bold text-yellow-600 mb-2">Débutant</h3>
+            <div class="space-y-2">
+              <p class="text-sm text-gray-600">
+                {{ statistics()!.byDifficulty.beginner.correct }} / {{ statistics()!.byDifficulty.beginner.total }} correct
+              </p>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-yellow-600 h-2 rounded-full"
+                  [style.width.%]="(statistics()!.byDifficulty.beginner.total > 0 ? (statistics()!.byDifficulty.beginner.correct / statistics()!.byDifficulty.beginner.total) * 100 : 0)"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Intermédiaire -->
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-bold text-orange-600 mb-2">Intermédiaire</h3>
+            <div class="space-y-2">
+              <p class="text-sm text-gray-600">
+                {{ statistics()!.byDifficulty.intermediate.correct }} / {{ statistics()!.byDifficulty.intermediate.total }} correct
+              </p>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-orange-600 h-2 rounded-full"
+                  [style.width.%]="(statistics()!.byDifficulty.intermediate.total > 0 ? (statistics()!.byDifficulty.intermediate.correct / statistics()!.byDifficulty.intermediate.total) * 100 : 0)"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Avancé -->
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-bold text-red-600 mb-2">Avancé</h3>
+            <div class="space-y-2">
+              <p class="text-sm text-gray-600">
+                {{ statistics()!.byDifficulty.advanced.correct }} / {{ statistics()!.byDifficulty.advanced.total }} correct
+              </p>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-red-600 h-2 rounded-full"
+                  [style.width.%]="(statistics()!.byDifficulty.advanced.total > 0 ? (statistics()!.byDifficulty.advanced.correct / statistics()!.byDifficulty.advanced.total) * 100 : 0)"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bouton de réinitialisation -->
+      <div class="flex justify-center">
+        <button
+          (click)="resetStatistics()"
+          class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition"
+        >
+          Réinitialiser les statistiques
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

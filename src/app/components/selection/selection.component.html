@@ -1,0 +1,99 @@
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+  <!-- En-tête avec navigation -->
+  <div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-blue-600">Time Sensei</h1>
+        <p class="text-gray-600 text-sm">Sélectionnez votre session de révision</p>
+      </div>
+      <div class="space-x-2">
+        <button
+          (click)="viewStatistics()"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition"
+        >
+          Statistiques
+        </button>
+        <button
+          (click)="logout()"
+          class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition"
+        >
+          Déconnexion
+        </button>
+      </div>
+    </div>
+
+    <!-- Conteneur principal -->
+    <div class="space-y-6">
+      <!-- Sélection du type de caractère -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">1. Type de caractère</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            *ngFor="let type of characterTypes"
+            (click)="characterType.set(type.value)"
+            class="p-4 border-2 rounded-lg cursor-pointer transition"
+            [ngClass]="
+              characterType() === type.value
+                ? 'border-blue-600 bg-blue-50'
+                : 'border-gray-300 hover:border-blue-400 bg-white'
+            "
+          >
+            <div class="text-lg font-bold text-blue-600 mb-1">{{ type.label }}</div>
+            <p class="text-sm text-gray-600">{{ type.description }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sélection du mode de révision -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">2. Mode de révision</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            *ngFor="let mode of revisionModes"
+            (click)="revisionMode.set(mode.value)"
+            class="p-4 border-2 rounded-lg cursor-pointer transition"
+            [ngClass]="
+              revisionMode() === mode.value
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-300 hover:border-green-400 bg-white'
+            "
+          >
+            <div class="text-lg font-bold text-green-600 mb-1">{{ mode.label }}</div>
+            <p class="text-sm text-gray-600">{{ mode.description }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sélection de la difficulté -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">3. Niveau de difficulté</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            *ngFor="let diff of difficulties"
+            (click)="difficulty.set(diff.value)"
+            class="p-4 border-2 rounded-lg cursor-pointer transition"
+            [ngClass]="
+              difficulty() === diff.value
+                ? 'border-purple-600 bg-purple-50'
+                : 'border-gray-300 hover:border-purple-400 bg-white'
+            "
+          >
+            <div class="text-lg font-bold text-purple-600 mb-1">{{ diff.label }}</div>
+            <p class="text-sm text-gray-600">{{ diff.description }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bouton de démarrage -->
+      <div class="flex justify-center">
+        <button
+          (click)="startRevision()"
+          [disabled]="!isSelectionValid() || isLoading()"
+          class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-lg transition text-lg"
+        >
+          {{ isLoading() ? 'Chargement...' : 'Commencer la révision' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
