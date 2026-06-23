@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { v4 as uuid } from 'uuid';
-import { Kana, Kanji, ListeUtilisateur, CharacterType, DifficultyLevel, ListeFiche, FicheRevision } from '../models/character.model';
+import { Kana, Kanji, ListeUtilisateur, CharacterType, DifficultyLevel, ListeFiche, FicheRevision, CharacterAnswer } from '../models/character.model';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { delay } from 'rxjs/operators';
@@ -222,5 +222,38 @@ export class CharacterService {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;
+  }
+
+  getListId(type: CharacterType): string | undefined {
+    switch (type) {
+      case 'hiragana':
+        return this.hiraganaList?.id;
+      case 'katakana':
+        return this.katakanaList?.id;
+      case 'kanji':
+        return this.kanjiList?.id;
+    }
+  }
+
+  /**
+   * Envoie les résultats d'une session au backend.
+   * Payload: { results: CharacterAnswer[] }
+   * Endpoint provisoire : POST /liste_utilisateur/{listId}/resultat_session
+   */
+  sendSessionResults(listId: string, results: CharacterAnswer[]): Observable<any> {
+    if (!listId) {
+      console.warn('No listId provided, skipping session results send.');
+      return of(null);
+    }
+
+    // Le back attend une séquence JSON (array) à la racine, contenant le champ `fiche_id`.
+    // Transforme les résultats front en format attendu sans modifier l'interface globale.
+    const payload = results.map(r => ({
+      fiche_id: r.characterId,
+      result: r.correct,
+      user_answer: r.userAnswer
+    }));
+
+    return this.http.post(`${environment.apiURL}/liste_utilisateur/${listId}/resultat_session`, payload);
   }
 }

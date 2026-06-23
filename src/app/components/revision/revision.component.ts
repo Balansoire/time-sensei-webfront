@@ -2,7 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Kana, Kanji, CharacterType, RevisionMode, DifficultyLevel, ListeFiche } from '../../models/character.model';
+import { Kana, Kanji, CharacterType, RevisionMode, DifficultyLevel, ListeFiche, CharacterAnswer } from '../../models/character.model';
 import { CharacterService } from '../../services/character.service';
 import { StatisticsService } from '../../services/statistics.service';
 import { AuthService } from '../../services/auth.service';
@@ -35,6 +35,9 @@ export class RevisionComponent implements OnInit {
   totalQuestions = signal(0);
   correctAnswers = signal(0);
   sessionComplete = signal(false);
+
+  // Stocke les réponses de la session avant envoi au backend
+  private sessionResults: CharacterAnswer[] = [];
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -123,6 +126,7 @@ export class RevisionComponent implements OnInit {
 
     if (index >= this.totalQuestions()) {
       this.sessionComplete.set(true);
+      this.finalizeSession();
       return;
     }
 
@@ -155,11 +159,15 @@ export class RevisionComponent implements OnInit {
       this.correctAnswers.update(val => val + 1);
     }
 
-    this.statisticsService.recordAnswer({
+    const res: CharacterAnswer = {
       characterId: this.currentCharacter()?.id || '',
       correct: isCorrect,
-      userAnswer: answer
-    });
+      userAnswer: answer,
+      type: this.characterType() || undefined,
+      difficulty: this.difficulty() || undefined
+    };
+    this.sessionResults.push(res);
+    this.statisticsService.recordAnswer(res);
   }
 
   submitWriting(): void {
@@ -173,11 +181,15 @@ export class RevisionComponent implements OnInit {
       this.correctAnswers.update(val => val + 1);
     }
 
-    this.statisticsService.recordAnswer({
+    const res: CharacterAnswer = {
       characterId: this.currentCharacter()?.id || '',
       correct: isCorrect,
-      userAnswer: userAnswer
-    });
+      userAnswer: userAnswer,
+      type: this.characterType() || undefined,
+      difficulty: this.difficulty() || undefined
+    };
+    this.sessionResults.push(res);
+    this.statisticsService.recordAnswer(res);
   }
 
   nextCharacter(): void {
@@ -186,7 +198,26 @@ export class RevisionComponent implements OnInit {
       this.displayNextCharacter();
     } else {
       this.sessionComplete.set(true);
+      this.finalizeSession();
     }
+  }
+
+  private finalizeSession(): void {
+    // Envoi des résultats de la session au backend
+    const type = this.characterType();
+    if (!type) return;
+
+    const listId = this.characterService.getListId(type);
+    if (!listId) {
+      console.warn('Aucune liste trouvée pour le type', type);
+      return;
+    }
+
+    // Envoi en une seule requête (endpoint provisoire à implémenter côté back)
+    this.characterService.sendSessionResults(listId, this.sessionResults).subscribe({
+      next: () => console.info('Résultats de session envoyés'),
+      error: (err) => console.error('Erreur en envoyant les résultats de session', err)
+    });
   }
 
   restartSession(): void {

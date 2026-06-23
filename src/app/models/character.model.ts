@@ -54,6 +54,8 @@ export interface CharacterAnswer {
   characterId: string;
   correct: boolean;
   userAnswer: string;
+  type?: CharacterType;
+  difficulty?: DifficultyLevel;
 }
 
 export interface UserStatistics {
