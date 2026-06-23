@@ -28,7 +28,7 @@ export class AuthService {
       // Simulation de connexion (backend sera fait ultérieurement)
       setTimeout(() => {
         const user: User = {
-          id: '1',
+          id: username,
           username: username,
           email: `${username}@example.com`
         };

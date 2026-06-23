@@ -1,81 +1,191 @@
-import { Injectable } from '@angular/core';
-import { Kana, Kanji, CharacterType, DifficultyLevel } from '../models/character.model';
+import { inject, Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { v4 as uuid } from 'uuid';
+import { Kana, Kanji, ListeUtilisateur, CharacterType, DifficultyLevel, ListeFiche, FicheRevision } from '../models/character.model';
 import { Observable, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { delay } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
+
+type RawHiraganaCaractere = { Hiragana: { romaji: string; kana: string; groupe: string; sous_groupe: string } };
+type RawKatakanaCaractere = { Katakana: { romaji: string; kana: string; groupe: string; sous_groupe: string } };
+type RawKanjiCaractere = { Kanji: { romaji_l: string; kana_l: string; romaji_c: string; kana_c: string; kanji: string; groupe: string; sous_groupe: string; signification: string } };
+type RawCaractere = RawHiraganaCaractere | RawKatakanaCaractere | RawKanjiCaractere;
+type RawFicheRevision = {
+  caractere: RawCaractere;
+  suite_succes: number;
+  derniere_revision: string;
+  nombre_revisions: number;
+  nombre_succes: number;
+};
+type RawListeUtilisateur = {
+  id: string;
+  user_id: string;
+  type_liste: 'Hiragana' | 'Katakana' | 'Kanji';
+  nombre_revisions_liste: number;
+  liste_fiche: RawFicheRevision[];
+};
 
 @Injectable({
   providedIn: 'root'
 })
 export class CharacterService {
-  private readonly hiraganaList: Kana[] = [
-    { id: '1', character: 'あ', romaji: 'a', type: 'hiragana' },
-    { id: '2', character: 'い', romaji: 'i', type: 'hiragana' },
-    { id: '3', character: 'う', romaji: 'u', type: 'hiragana' },
-    { id: '4', character: 'え', romaji: 'e', type: 'hiragana' },
-    { id: '5', character: 'お', romaji: 'o', type: 'hiragana' },
-    { id: '6', character: 'か', romaji: 'ka', type: 'hiragana' },
-    { id: '7', character: 'き', romaji: 'ki', type: 'hiragana' },
-    { id: '8', character: 'く', romaji: 'ku', type: 'hiragana' },
-    { id: '9', character: 'け', romaji: 'ke', type: 'hiragana' },
-    { id: '10', character: 'こ', romaji: 'ko', type: 'hiragana' }
-  ];
+  private readonly http = inject(HttpClient);
 
-  private readonly katakanaList: Kana[] = [
-    { id: '11', character: 'ア', romaji: 'a', type: 'katakana' },
-    { id: '12', character: 'イ', romaji: 'i', type: 'katakana' },
-    { id: '13', character: 'ウ', romaji: 'u', type: 'katakana' },
-    { id: '14', character: 'エ', romaji: 'e', type: 'katakana' },
-    { id: '15', character: 'オ', romaji: 'o', type: 'katakana' },
-    { id: '16', character: 'カ', romaji: 'ka', type: 'katakana' },
-    { id: '17', character: 'キ', romaji: 'ki', type: 'katakana' },
-    { id: '18', character: 'ク', romaji: 'ku', type: 'katakana' },
-    { id: '19', character: 'ケ', romaji: 'ke', type: 'katakana' },
-    { id: '20', character: 'コ', romaji: 'ko', type: 'katakana' }
-  ];
+  private hiraganaList: ListeUtilisateur | undefined;
 
-  private readonly kanjiList: Kanji[] = [
-    { id: '21', character: '一', romaji_l: 'ichi', signification: 'one', type: 'kanji' },
-    { id: '22', character: '二', romaji_l: 'ni', signification: 'two', type: 'kanji' },
-    { id: '23', character: '三', romaji_l: 'san', signification: 'three', type: 'kanji' },
-    { id: '24', character: '四', romaji_l: 'shi', signification: 'four', type: 'kanji' },
-    { id: '25', character: '五', romaji_l: 'go', signification: 'five', type: 'kanji' },
-    { id: '26', character: '人', romaji_l: 'hito', signification: 'person', type: 'kanji' },
-    { id: '27', character: '日', romaji_l: 'hi', signification: 'day', type: 'kanji' },
-    { id: '28', character: '月', romaji_l: 'tsuki', signification: 'moon', type: 'kanji' },
-    { id: '29', character: '火', romaji_l: 'hi', signification: 'fire', type: 'kanji' },
-    { id: '30', character: '水', romaji_l: 'mizu', signification: 'water', type: 'kanji' }
-  ];
+  private katakanaList: ListeUtilisateur | undefined;
+
+  private kanjiList: ListeUtilisateur | undefined;
 
   constructor() {}
 
-  getCharacters(type: CharacterType, difficulty: DifficultyLevel): Observable<Kana[] | Kanji[]> {
-    let characters: Kana[] | Kanji[] = [];
+  getLists(id: string): Observable<[ListeUtilisateur, ListeUtilisateur, ListeUtilisateur]> {
+    return this.http.get<RawListeUtilisateur[]>(`${environment.apiURL}/liste_utilisateur/utilisateur/${id}`)
+      .pipe(
+        map((rawLists) => {
+          if (!Array.isArray(rawLists)) {
+            return [this.createEmptyList('hiragana'), this.createEmptyList('katakana'), this.createEmptyList('kanji')];
+          }
+          return this.normalizeLists(rawLists);
+        })
+      );
+  }
+  
+  private normalizeLists(rawLists: RawListeUtilisateur[]): [ListeUtilisateur, ListeUtilisateur, ListeUtilisateur] {
+    const normalizedLists = rawLists.map((raw) => ({
+      id: raw.id,
+      userId: raw.user_id,
+      type_liste_fiche: this.mapType(raw.type_liste),
+      nombre_revisions: raw.nombre_revisions_liste,
+      liste_fiche: raw.liste_fiche.map((fiche) => this.normalizeFicheRevision(fiche))
+    }));
+
+    return [
+      normalizedLists.find((list) => list.type_liste_fiche === 'hiragana') ?? this.createEmptyList('hiragana'),
+      normalizedLists.find((list) => list.type_liste_fiche === 'katakana') ?? this.createEmptyList('katakana'),
+      normalizedLists.find((list) => list.type_liste_fiche === 'kanji') ?? this.createEmptyList('kanji')
+    ];
+  }
+
+  private normalizeFicheRevision(raw: RawFicheRevision): FicheRevision {
+    const rawCaractere = raw.caractere;
+
+    if ('Hiragana' in rawCaractere) {
+      return {
+        caractere: {
+          id: uuid(),
+          caractere: rawCaractere.Hiragana.kana,
+          romaji: rawCaractere.Hiragana.romaji,
+          type: 'hiragana',
+          groupe: rawCaractere.Hiragana.groupe
+        },
+        suite_succes: raw.suite_succes,
+        derniere_revision: raw.derniere_revision,
+        nombre_revisions: raw.nombre_revisions,
+        nombre_succes: raw.nombre_succes
+      };
+    }
+
+    if ('Katakana' in rawCaractere) {
+      return {
+        caractere: {
+          id: uuid(),
+          caractere: rawCaractere.Katakana.kana,
+          romaji: rawCaractere.Katakana.romaji,
+          type: 'katakana',
+          groupe: rawCaractere.Katakana.groupe
+        },
+        suite_succes: raw.suite_succes,
+        derniere_revision: raw.derniere_revision,
+        nombre_revisions: raw.nombre_revisions,
+        nombre_succes: raw.nombre_succes
+      };
+    }
+
+    return {
+      caractere: {
+        id: uuid(),
+        caractere: rawCaractere.Kanji.kanji,
+        hiragana_l: rawCaractere.Kanji.kana_l,
+        romaji_l: rawCaractere.Kanji.romaji_l,
+        hiragana_c: rawCaractere.Kanji.kana_c,
+        romaji_c: rawCaractere.Kanji.romaji_c,
+        signification: rawCaractere.Kanji.signification,
+        type: 'kanji',
+        groupe: rawCaractere.Kanji.groupe
+      },
+      suite_succes: raw.suite_succes,
+      derniere_revision: raw.derniere_revision,
+      nombre_revisions: raw.nombre_revisions,
+      nombre_succes: raw.nombre_succes
+    };
+  }
+
+  private mapType(type: RawListeUtilisateur['type_liste']): CharacterType {
+    switch (type) {
+      case 'Hiragana':
+        return 'hiragana';
+      case 'Katakana':
+        return 'katakana';
+      case 'Kanji':
+        return 'kanji';
+    }
+  }
+
+  private createEmptyList(type: CharacterType): ListeUtilisateur {
+    return {
+      id: '',
+      userId: '',
+      type_liste_fiche: type,
+      nombre_revisions: 0,
+      liste_fiche: []
+    };
+  }
+
+  setLists(hiragana: ListeUtilisateur, katakana: ListeUtilisateur, kanji: ListeUtilisateur): void {
+  this.hiraganaList = hiragana;
+  this.katakanaList = katakana;
+  this.kanjiList = kanji;
+}
+
+  getCharacters(type: CharacterType, difficulty: DifficultyLevel): Observable<ListeFiche> {
+    let fiches: ListeFiche = [];
 
     switch (type) {
       case 'hiragana':
-        characters = this.hiraganaList;
+        if (!this.hiraganaList) {
+          throw new Error("List not found")
+        }
+        fiches = this.hiraganaList.liste_fiche;
         break;
       case 'katakana':
-        characters = this.katakanaList;
+        if (!this.katakanaList) {
+          throw new Error("List not found")
+        }
+        fiches = this.katakanaList.liste_fiche;
         break;
       case 'kanji':
-        characters = this.kanjiList;
+        if (!this.kanjiList) {
+          throw new Error("List not found")
+        }
+        fiches = this.kanjiList.liste_fiche;
         break;
     }
 
     // Mélanger les caractères
-    const shuffled = this.shuffleArray([...characters] as (Kana | Kanji)[]);
-    return of(shuffled as Kana[] | Kanji[]).pipe(delay(300));
+    const shuffled = this.shuffleArray([...fiches] as FicheRevision[]);
+    return of(shuffled).pipe(delay(300));
   }
 
-  getAnswerOptions(character: Kana | Kanji, correctOptions: number = 4): string[] {
-    const allCharacters = this.getAllCharactersOfType(character.type);
+  getAnswerOptions(fiche: FicheRevision, correctOptions: number = 4): string[] {
+    const allCharacters = this.getAllFicheOfType(fiche.caractere.type);
     const options = new Set<string>();
-    options.add(this.getCharacterAnswer(character));
+    options.add(this.getCharacterAnswer(fiche.caractere));
 
     while (options.size < correctOptions) {
       const randomChar = allCharacters[Math.floor(Math.random() * allCharacters.length)];
-      options.add(this.getCharacterAnswer(randomChar));
+      options.add(this.getCharacterAnswer(randomChar.caractere));
     }
 
     return this.shuffleArray(Array.from(options));
@@ -85,14 +195,23 @@ export class CharacterService {
     return character.type === 'kanji' ? character.romaji_l : character.romaji;
   }
 
-  private getAllCharactersOfType(type: CharacterType): Kana[] | Kanji[] {
+  private getAllFicheOfType(type: CharacterType): ListeFiche {
     switch (type) {
       case 'hiragana':
-        return this.hiraganaList;
+        if (!this.hiraganaList) {
+          throw new Error("List not found")
+        }
+        return this.hiraganaList.liste_fiche;
       case 'katakana':
-        return this.katakanaList;
+        if (!this.katakanaList) {
+          throw new Error("List not found")
+        }
+        return this.katakanaList.liste_fiche;
       case 'kanji':
-        return this.kanjiList;
+        if (!this.kanjiList) {
+          throw new Error("List not found")
+        }
+        return this.kanjiList.liste_fiche;
     }
   }
 

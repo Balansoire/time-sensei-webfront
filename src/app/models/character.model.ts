@@ -4,9 +4,10 @@ export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
 
 export interface Kana {
   id: string;
-  character: string;
+  caractere: string;
   romaji: string;
   type: 'hiragana' | 'katakana';
+  groupe: string;
 }
 export interface Kanji {
   id: string;
@@ -14,9 +15,31 @@ export interface Kanji {
   romaji_l: string;
   hiragana_c?: string;
   romaji_c?: string;
-  character: string;
+  caractere: string;
   signification?: string;
   type: 'kanji';
+  groupe: string;
+}
+
+export interface FicheRevision {
+  caractere: Kana | Kanji;
+
+  suite_succes: number;
+  derniere_revision: string;
+  nombre_revisions: number;
+  nombre_succes: number;
+  
+}
+
+export type ListeFiche = FicheRevision[];
+
+export interface ListeUtilisateur {
+  id: string;
+  userId: string;
+  type_liste_fiche: CharacterType;
+
+  nombre_revisions: number;
+  liste_fiche: ListeFiche;
 }
 
 export interface RevisionSession {
