@@ -1,74 +1,118 @@
-import { Injectable, signal } from '@angular/core';
-import { UserStatistics, CharacterAnswer } from '../models/character.model';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { catchError, delay, map, tap } from 'rxjs/operators';
+import { BackendUserStatistics, CharacterAnswer, UserStatistics } from '../models/character.model';
+import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
+
+export function normalizeUserStatisticsPayload(payload: BackendUserStatistics | null | undefined): UserStatistics {
+  const stats = Object.entries(payload?.stats ?? {}).reduce<Record<string, number>>((acc, [key, value]) => {
+    acc[key] = Number(value) || 0;
+    return acc;
+  }, {});
+
+  if (payload?.byType) {
+    Object.entries(payload.byType).forEach(([key, value]) => {
+      stats[key] = value.total;
+    });
+  }
+
+  if (payload?.byDifficulty) {
+    Object.entries(payload.byDifficulty).forEach(([key, value]) => {
+      stats[key] = value.total;
+    });
+  }
+
+  return {
+    id: payload?.id,
+    userId: payload?.user_id ?? payload?.userId,
+    nombre_total_revisions: Number(payload?.nombre_total_revisions ?? payload?.totalAnswers ?? 0),
+    totalAnswers: Number(payload?.totalAnswers ?? 0),
+    correctAnswers: Number(payload?.correctAnswers ?? 0),
+    accuracy: Number(payload?.accuracy ?? 0),
+    stats
+  };
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class StatisticsService {
-  private readonly statistics = signal<UserStatistics>({
-    userId: '1',
-    totalAnswers: 250,
-    correctAnswers: 180,
-    accuracy: 72,
-    byType: {
-      hiragana: { correct: 95, total: 100 },
-      katakana: { correct: 45, total: 75 },
-      kanji: { correct: 40, total: 75 }
-    },
-    byDifficulty: {
-      beginner: { correct: 120, total: 150 },
-      intermediate: { correct: 40, total: 75 },
-      advanced: { correct: 20, total: 25 }
-    }
-  });
+  private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
+  private readonly statistics = signal<UserStatistics>(this.createEmptyStatistics());
 
   constructor() {
-    // Charger les statistiques depuis localStorage si disponible
     const savedStats = localStorage.getItem('userStatistics');
     if (savedStats) {
-      this.statistics.set(JSON.parse(savedStats));
+      this.statistics.set(normalizeUserStatisticsPayload(JSON.parse(savedStats)));
     }
   }
 
   getUserStatistics(): Observable<UserStatistics> {
-    return of(this.statistics()).pipe(delay(300));
+    const userId = this.authService.getCurrentUser()?.id ?? 'current-user';
+
+    return this.http.get<BackendUserStatistics>(`${environment.apiURL}/stat_utilisateur/utilisateur/${userId}`).pipe(
+      map((payload) => this.normalizeStatistics(payload, userId)),
+      catchError(() => {
+        const fallbackStats = this.getFallbackStatistics(userId);
+        this.statistics.set(fallbackStats);
+        return of(fallbackStats);
+      }),
+      tap((stats) => {
+        this.statistics.set(stats);
+        localStorage.setItem('userStatistics', JSON.stringify(stats));
+      }),
+      delay(300)
+    );
   }
 
   recordAnswer(answer: CharacterAnswer): void {
     const currentStats = this.statistics();
-    const newStats = { ...currentStats };
+    const nextStats: UserStatistics = {
+      ...currentStats,
+      nombre_total_revisions: (currentStats.nombre_total_revisions ?? 0) + 1,
+      stats: { ...currentStats.stats }
+    };
 
-    newStats.totalAnswers++;
-    if (answer.correct) {
-      newStats.correctAnswers++;
-    }
-    newStats.accuracy = Math.round((newStats.correctAnswers / newStats.totalAnswers) * 100);
+    const statKey = answer.type ? this.formatStatKey(answer.type) : (answer.difficulty ? this.formatStatKey(answer.difficulty) : 'Autre');
+    nextStats.stats[statKey] = (nextStats.stats[statKey] ?? 0) + 1;
 
-    localStorage.setItem('userStatistics', JSON.stringify(newStats));
-    this.statistics.set(newStats);
+    localStorage.setItem('userStatistics', JSON.stringify(nextStats));
+    this.statistics.set(nextStats);
   }
 
   resetStatistics(): void {
-    const resetStats: UserStatistics = {
-      userId: '1',
-      totalAnswers: 0,
-      correctAnswers: 0,
-      accuracy: 0,
-      byType: {
-        hiragana: { correct: 0, total: 0 },
-        katakana: { correct: 0, total: 0 },
-        kanji: { correct: 0, total: 0 }
-      },
-      byDifficulty: {
-        beginner: { correct: 0, total: 0 },
-        intermediate: { correct: 0, total: 0 },
-        advanced: { correct: 0, total: 0 }
-      }
-    };
-
+    const resetStats = this.createEmptyStatistics(this.authService.getCurrentUser()?.id);
     localStorage.setItem('userStatistics', JSON.stringify(resetStats));
     this.statistics.set(resetStats);
+  }
+
+  private normalizeStatistics(payload: BackendUserStatistics | null | undefined, userId: string): UserStatistics {
+    const stats = normalizeUserStatisticsPayload(payload);
+    stats.userId = userId;
+    return stats;
+  }
+
+  private getFallbackStatistics(userId: string): UserStatistics {
+    const savedStats = localStorage.getItem('userStatistics');
+    if (savedStats) {
+      return normalizeUserStatisticsPayload(JSON.parse(savedStats));
+    }
+
+    return this.createEmptyStatistics(userId);
+  }
+
+  private createEmptyStatistics(userId?: string): UserStatistics {
+    return {
+      userId,
+      nombre_total_revisions: 0,
+      stats: {}
+    };
+  }
+
+  private formatStatKey(value: string): string {
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 }

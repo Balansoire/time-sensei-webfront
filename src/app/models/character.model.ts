@@ -59,18 +59,24 @@ export interface CharacterAnswer {
 }
 
 export interface UserStatistics {
-  userId: string;
-  totalAnswers: number;
-  correctAnswers: number;
-  accuracy: number;
-  byType: {
-    hiragana: { correct: number; total: number };
-    katakana: { correct: number; total: number };
-    kanji: { correct: number; total: number };
-  };
-  byDifficulty: {
-    beginner: { correct: number; total: number };
-    intermediate: { correct: number; total: number };
-    advanced: { correct: number; total: number };
-  };
+  id?: string;
+  userId?: string;
+  nombre_total_revisions?: number;
+  totalAnswers?: number;
+  correctAnswers?: number;
+  accuracy?: number;
+  stats: Record<string, number>;
+}
+
+export interface BackendUserStatistics {
+  id?: string;
+  user_id?: string;
+  userId?: string;
+  nombre_total_revisions?: number;
+  stats?: Record<string, number>;
+  totalAnswers?: number;
+  correctAnswers?: number;
+  accuracy?: number;
+  byType?: Record<string, { correct: number; total: number }>;
+  byDifficulty?: Record<string, { correct: number; total: number }>;
 }
