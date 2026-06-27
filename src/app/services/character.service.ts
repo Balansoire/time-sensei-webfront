@@ -41,7 +41,7 @@ export class CharacterService {
   constructor() {}
 
   getLists(id: string): Observable<[ListeUtilisateur, ListeUtilisateur, ListeUtilisateur]> {
-    console.log(environment.apiURL);
+    console.log("URL API: " + environment.apiURL);
     return this.http.get<RawListeUtilisateur[]>(`${environment.apiURL}/liste_utilisateur/utilisateur/${id}`)
       .pipe(
         map((rawLists) => {
